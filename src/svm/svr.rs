@@ -103,10 +103,10 @@ pub struct SVRParameters<T: Number + FloatNumber + PartialOrd> {
 #[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
 #[derive(Debug)]
 /// Epsilon-Support Vector Regression
-pub struct SVR<'a, T: Number + FloatNumber + PartialOrd, X: Array2<T>, Y: Array1<T>> {
+pub struct SVR<T: Number + FloatNumber + PartialOrd, X: Array2<T>, Y: Array1<T>> {
     instances: Option<Vec<Vec<f64>>>,
     #[cfg_attr(feature = "serde", serde(skip_deserializing))]
-    parameters: Option<&'a SVRParameters<T>>,
+    parameters: Option<SVRParameters<T>>,
     w: Option<Vec<T>>,
     b: T,
     phantom: PhantomData<(X, Y)>,
@@ -178,7 +178,7 @@ impl<T: Number + FloatNumber + PartialOrd> Default for SVRParameters<T> {
 }
 
 impl<'a, T: Number + FloatNumber + PartialOrd, X: Array2<T>, Y: Array1<T>>
-    SupervisedEstimatorBorrow<'a, X, Y, SVRParameters<T>> for SVR<'a, T, X, Y>
+    SupervisedEstimatorBorrow<'a, X, Y, SVRParameters<T>> for SVR<T, X, Y>
 {
     fn new() -> Self {
         Self {
@@ -189,30 +189,26 @@ impl<'a, T: Number + FloatNumber + PartialOrd, X: Array2<T>, Y: Array1<T>>
             phantom: PhantomData,
         }
     }
-    fn fit(x: &'a X, y: &'a Y, parameters: &'a SVRParameters<T>) -> Result<Self, Failed> {
+    fn fit(x: &'a X, y: &'a Y, parameters: SVRParameters<T>) -> Result<Self, Failed> {
         SVR::fit(x, y, parameters)
     }
 }
 
 impl<'a, T: Number + FloatNumber + PartialOrd, X: Array2<T>, Y: Array1<T>> PredictorBorrow<'a, X, T>
-    for SVR<'a, T, X, Y>
+    for SVR<T, X, Y>
 {
     fn predict(&self, x: &'a X) -> Result<Vec<T>, Failed> {
         self.predict(x)
     }
 }
 
-impl<'a, T: Number + FloatNumber + PartialOrd, X: Array2<T>, Y: Array1<T>> SVR<'a, T, X, Y> {
+impl<'a, T: Number + FloatNumber + PartialOrd, X: Array2<T>, Y: Array1<T>> SVR<T, X, Y> {
     /// Fits SVR to your data.
     /// * `x` - _NxM_ matrix with _N_ observations and _M_ features in each observation.
     /// * `y` - target values
     /// * `kernel` - the kernel function
     /// * `parameters` - optional parameters, use `Default::default()` to set parameters to default values.
-    pub fn fit(
-        x: &'a X,
-        y: &'a Y,
-        parameters: &'a SVRParameters<T>,
-    ) -> Result<SVR<'a, T, X, Y>, Failed> {
+    pub fn fit(x: &'a X, y: &'a Y, parameters: SVRParameters<T>) -> Result<SVR<T, X, Y>, Failed> {
         let (n, _) = x.shape();
 
         if n != y.shape() {
@@ -228,7 +224,7 @@ impl<'a, T: Number + FloatNumber + PartialOrd, X: Array2<T>, Y: Array1<T>> SVR<'
             ));
         }
 
-        let optimizer: Optimizer<'a, T> = Optimizer::new(x, y, parameters);
+        let optimizer: Optimizer<'_, T> = Optimizer::new(x, y, &parameters);
 
         let (support_vectors, weight, b) = optimizer.smo();
 
@@ -282,7 +278,7 @@ impl<'a, T: Number + FloatNumber + PartialOrd, X: Array2<T>, Y: Array1<T>> SVR<'
 }
 
 impl<'a, T: Number + FloatNumber + PartialOrd, X: Array2<T>, Y: Array1<T>> PartialEq
-    for SVR<'a, T, X, Y>
+    for SVR<T, X, Y>
 {
     fn eq(&self, other: &Self) -> bool {
         if (self.b - other.b).abs() > T::epsilon() * T::two()

@@ -44,7 +44,7 @@ pub trait SupervisedEstimatorBorrow<'a, X, Y, P> {
     /// * `x` - _NxM_ matrix with _N_ observations and _M_ features in each observation.
     /// * `y` - target training values of size _N_.
     /// * `&parameters` - hyperparameters of an algorithm
-    fn fit(x: &'a X, y: &'a Y, parameters: &'a P) -> Result<Self, Failed>
+    fn fit(x: &'a X, y: &'a Y, parameters: P) -> Result<Self, Failed>
     where
         Self: Sized,
         P: Clone;

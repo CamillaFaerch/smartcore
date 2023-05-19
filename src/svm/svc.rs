@@ -122,11 +122,11 @@ pub struct SVCParameters<TX: Number + RealNumber, TY: Number + Ord, X: Array2<TX
     ))
 )]
 /// Support Vector Classifier
-pub struct SVC<'a, TX: Number + RealNumber, TY: Number + Ord, X: Array2<TX>, Y: Array1<TY>> {
+pub struct SVC<TX: Number + RealNumber, TY: Number + Ord, X: Array2<TX>, Y: Array1<TY>> {
     classes: Option<Vec<TY>>,
     instances: Option<Vec<Vec<TX>>>,
     #[cfg_attr(feature = "serde", serde(skip))]
-    parameters: Option<&'a SVCParameters<TX, TY, X, Y>>,
+    parameters: Option<SVCParameters<TX, TY, X, Y>>,
     w: Option<Vec<TX>>,
     b: Option<TX>,
     phantomdata: PhantomData<(X, Y)>,
@@ -209,7 +209,7 @@ impl<TX: Number + RealNumber, TY: Number + Ord, X: Array2<TX>, Y: Array1<TY>> De
 }
 
 impl<'a, TX: Number + RealNumber, TY: Number + Ord, X: Array2<TX>, Y: Array1<TY>>
-    SupervisedEstimatorBorrow<'a, X, Y, SVCParameters<TX, TY, X, Y>> for SVC<'a, TX, TY, X, Y>
+    SupervisedEstimatorBorrow<'a, X, Y, SVCParameters<TX, TY, X, Y>> for SVC<TX, TY, X, Y>
 {
     fn new() -> Self {
         Self {
@@ -221,17 +221,13 @@ impl<'a, TX: Number + RealNumber, TY: Number + Ord, X: Array2<TX>, Y: Array1<TY>
             phantomdata: PhantomData,
         }
     }
-    fn fit(
-        x: &'a X,
-        y: &'a Y,
-        parameters: &'a SVCParameters<TX, TY, X, Y>,
-    ) -> Result<Self, Failed> {
+    fn fit(x: &'a X, y: &'a Y, parameters: SVCParameters<TX, TY, X, Y>) -> Result<Self, Failed> {
         SVC::fit(x, y, parameters)
     }
 }
 
 impl<'a, TX: Number + RealNumber, TY: Number + Ord, X: Array2<TX>, Y: Array1<TY>>
-    PredictorBorrow<'a, X, TX> for SVC<'a, TX, TY, X, Y>
+    PredictorBorrow<'a, X, TX> for SVC<TX, TY, X, Y>
 {
     fn predict(&self, x: &'a X) -> Result<Vec<TX>, Failed> {
         Ok(self.predict(x).unwrap())
@@ -239,7 +235,7 @@ impl<'a, TX: Number + RealNumber, TY: Number + Ord, X: Array2<TX>, Y: Array1<TY>
 }
 
 impl<'a, TX: Number + RealNumber, TY: Number + Ord, X: Array2<TX> + 'a, Y: Array1<TY> + 'a>
-    SVC<'a, TX, TY, X, Y>
+    SVC<TX, TY, X, Y>
 {
     /// Fits SVC to your data.
     /// * `x` - _NxM_ matrix with _N_ observations and _M_ features in each observation.
@@ -248,8 +244,8 @@ impl<'a, TX: Number + RealNumber, TY: Number + Ord, X: Array2<TX> + 'a, Y: Array
     pub fn fit(
         x: &'a X,
         y: &'a Y,
-        parameters: &'a SVCParameters<TX, TY, X, Y>,
-    ) -> Result<SVC<'a, TX, TY, X, Y>, Failed> {
+        parameters: SVCParameters<TX, TY, X, Y>,
+    ) -> Result<SVC<TX, TY, X, Y>, Failed> {
         let (n, _) = x.shape();
 
         if parameters.kernel.is_none() {
@@ -285,11 +281,11 @@ impl<'a, TX: Number + RealNumber, TY: Number + Ord, X: Array2<TX> + 'a, Y: Array
             }
         }
 
-        let optimizer: Optimizer<'_, TX, TY, X, Y> = Optimizer::new(x, y, parameters);
+        let optimizer: Optimizer<'_, TX, TY, X, Y> = Optimizer::new(x, y, &parameters);
 
         let (support_vectors, weight, b) = optimizer.optimize();
 
-        Ok(SVC::<'a> {
+        Ok(SVC {
             classes: Some(classes),
             instances: Some(support_vectors),
             parameters: Some(parameters),
@@ -360,8 +356,8 @@ impl<'a, TX: Number + RealNumber, TY: Number + Ord, X: Array2<TX> + 'a, Y: Array
     }
 }
 
-impl<'a, TX: Number + RealNumber, TY: Number + Ord, X: Array2<TX>, Y: Array1<TY>> PartialEq
-    for SVC<'a, TX, TY, X, Y>
+impl<TX: Number + RealNumber, TY: Number + Ord, X: Array2<TX>, Y: Array1<TY>> PartialEq
+    for SVC<TX, TY, X, Y>
 {
     fn eq(&self, other: &Self) -> bool {
         if (self.b.unwrap().sub(other.b.unwrap())).abs() > TX::epsilon() * TX::two()
@@ -488,7 +484,6 @@ impl<'a, TX: Number + RealNumber, TY: Number + Ord, X: Array2<TX>, Y: Array1<TY>
                 }
             }
         }
-
         self.finish(&mut cache);
 
         let mut support_vectors: Vec<Vec<TX>> = Vec::new();
